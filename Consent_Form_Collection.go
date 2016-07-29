@@ -79,6 +79,13 @@ func (t *SimpleChaincode) Query(stub *shim.ChaincodeStub, function string, args 
       
       return t.get_customer(stub, customer_id, receiver_id)
       
+	
+	} else if function == "get_all" {
+    
+		if len(args) != 0 { fmt.Printf("Incorrect number of arguments passed"); return nil, errors.New("QUERY: Incorrect number of arguments passed") }
+            
+      return t.get_all(stub)
+      
 	} 
 	return nil,errors.New("QUERY: No such function.") 
 
@@ -226,6 +233,34 @@ func (t *SimpleChaincode) get_customer(stub *shim.ChaincodeStub, customer_id str
       valAsbytes, err := stub.GetState(key)
       if err != nil {
       result += string(valAsbytes) + ","	
+	}
+}
+	
+	if len(result) == 1 {
+		result = "[]"
+	} else {
+		result = result[:len(result)-1] + "]"
+	}
+	
+	return []byte(result), nil
+}
+func (t *SimpleChaincode) get_all(stub *shim.ChaincodeStub) ([]byte, error) {
+
+  result := "["
+
+  keysIter, err := stub.RangeQueryState("","")
+  if err != nil { return nil, errors.New("Unable to start the iterator") }
+
+  defer keysIter.Close()
+
+  for keysIter.HasNext() {
+      key, _, iterErr := keysIter.Next()
+      if iterErr != nil {
+          return nil, fmt.Errorf("keys operation failed. Error accessing state: %s", err)
+      }
+      valAsbytes, err := stub.GetState(key)
+      if err != nil {
+      result += " [ " + key + " , " +  string(valAsbytes) + " ] ,"
 	}
 }
 	
