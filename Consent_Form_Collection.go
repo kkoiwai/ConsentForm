@@ -101,6 +101,7 @@ func (t *SimpleChaincode) register_customer(stub *shim.ChaincodeStub, customer_i
   data_key, scr_key, src_key, rsc_key, csr_key, crs_key =  create_keys(customer_id, receiver_id, sender_id)
   var err error
   // register the value to KVS
+  fmt.Println("[DEBUG] PutState " + data_key + " , " + json_data )
   err = stub.PutState(data_key, []byte(json_data))
   if err != nil { return nil, errors.New("Unable to put the state") }
   
@@ -156,7 +157,7 @@ func (t *SimpleChaincode) delete_customer(stub *shim.ChaincodeStub, customer_id 
 }
 
 func create_keys(customer_id string, receiver_id string, sender_id string) (data_key, scr_key, src_key, rsc_key, csr_key, crs_key string){
-  data_key = "D/"+customer_id+"/"+receiver_id+"/"+sender_id
+  data_key = "D/"+receiver_id+"/"+customer_id+"/"+sender_id
   scr_key = "SCR/"+sender_id+"/"+customer_id+"/"+receiver_id
   src_key = "SRC/"+sender_id+"/"+receiver_id+"/"+customer_id
   rsc_key = "RSC/"+receiver_id+"/"+sender_id+"/"+customer_id
@@ -169,7 +170,7 @@ func get_key(key_type string, customer_id string, receiver_id string, sender_id 
 
   switch key_type {
     case "data_key" :
-      return "D/"+customer_id+"/"+receiver_id+"/"+sender_id
+      return "D/"+receiver_id+"/"+customer_id+"/"+sender_id
     case "scr_key" :
       return "SCR/"+sender_id+"/"+customer_id+"/"+receiver_id
     case "src_key" :
@@ -197,7 +198,7 @@ func parse_key(key string) (customer_id string, receiver_id string, sender_id st
   
   switch str[0] {
     case "D" :
-      customer_id=str[1]; receiver_id=str[2]; sender_id=str[3]
+      receiver_id=str[1]; customer_id=str[2]; sender_id=str[3]
     case "SCR" :
       sender_id=str[1]; customer_id=str[2]; receiver_id=str[3]
     case "SRC" :
@@ -226,14 +227,11 @@ func (t *SimpleChaincode) get_customer(stub *shim.ChaincodeStub, customer_id str
   defer keysIter.Close()
 
   for keysIter.HasNext() {
-      key, _, iterErr := keysIter.Next()
+      key, val, iterErr := keysIter.Next()
       if iterErr != nil {
           return nil, fmt.Errorf("keys operation failed. Error accessing state: %s", err)
       }
-      valAsbytes, err := stub.GetState(key)
-      if err != nil {
-      result += string(valAsbytes) + ","	
-	}
+      result += " [ " + key + " , " +  string(val) + " ] ,"
 }
 	
 	if len(result) == 1 {
@@ -248,20 +246,18 @@ func (t *SimpleChaincode) get_all(stub *shim.ChaincodeStub) ([]byte, error) {
 
   result := "["
 
-  keysIter, err := stub.RangeQueryState("","")
+  keysIter, err := stub.RangeQueryState("","~")
   if err != nil { return nil, errors.New("Unable to start the iterator") }
 
   defer keysIter.Close()
 
   for keysIter.HasNext() {
-      key, _, iterErr := keysIter.Next()
+      key, val, iterErr := keysIter.Next()
       if iterErr != nil {
           return nil, fmt.Errorf("keys operation failed. Error accessing state: %s", err)
       }
-      valAsbytes, err := stub.GetState(key)
-      if err != nil {
-      result += " [ " + key + " , " +  string(valAsbytes) + " ] ,"
-	}
+      result += " [ " + key + " , " +  string(val) + " ] ,"
+	
 }
 	
 	if len(result) == 1 {
