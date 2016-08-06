@@ -228,16 +228,19 @@ func (t *SimpleChaincode) delete_customer(stub *shim.ChaincodeStub, customer_id 
 
 func (t *SimpleChaincode) register_customer_crossref(stub *shim.ChaincodeStub,customer_id string, entity_id string, customer_ref string) ([]byte, error) {
 
+	var cust_refs []CustRef
+
 	key := "CUSTID/"+customer_id
 	bytes, err := stub.GetState(key)
 	if err != nil {
 		// it is first time to register this customer.
+	}else {
+
+		err = json.Unmarshal(bytes, &cust_refs)
+		if err != nil {
+			return nil, errors.New("Corrupt CustRef record: " + err.Error() + string(bytes))
+		}
 	}
-
-	var cust_refs []CustRef
-	err = json.Unmarshal(bytes, &cust_refs)
-	if err != nil {	return nil, errors.New("Corrupt CustRef record") }
-
 	//find duplicate
 	for _, ref := range cust_refs {
 		if (ref.customer_ref == customer_ref && ref.entity_id == entity_id) {
