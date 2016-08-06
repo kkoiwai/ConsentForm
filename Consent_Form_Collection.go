@@ -120,7 +120,7 @@ func (t *SimpleChaincode) Query(stub *shim.ChaincodeStub, function string, args 
 
 		return t.get_all(stub)
 
-	} else if function = "get_customer_crossref"{
+	} else if function == "get_customer_crossref"{
 		if len(args) != 2 {
 			fmt.Printf("Incorrect number of arguments passed"); return nil, errors.New("QUERY: Incorrect number of arguments passed")
 		}
@@ -258,6 +258,7 @@ func (t *SimpleChaincode) register_customer_crossref(stub *shim.ChaincodeStub,cu
 
 	err = stub.PutState(ref_key, []byte(key))
 	if err != nil { return nil, errors.New("Unable to put the state") }
+	return nil, nil
 
 }
 
@@ -302,6 +303,7 @@ func (t *SimpleChaincode) delete_customer_crossref(stub *shim.ChaincodeStub,cust
 
 	err = stub.DelState(ref_key)
 	if err != nil { return nil, errors.New("Unable to delete the state") }
+	return nil, nil
 
 }
 
@@ -364,9 +366,10 @@ func (t *SimpleChaincode) get_all(stub *shim.ChaincodeStub) ([]byte, error) {
 
 	return []byte(result), nil
 }
+
 func (t *SimpleChaincode) get_customer_crossref(stub *shim.ChaincodeStub, entity_id string, customer_ref string) ([]byte, error) {
 
-	var jsonResp
+	var jsonResp = ""
 	key:="CUSTREF/"+entity_id+"/"+customer_ref
 	datakeyAsbytes, err := stub.GetState(key)
 	if err != nil {
