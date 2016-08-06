@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"strings"
 	"github.com/hyperledger/fabric/core/chaincode/shim"
-	//"encoding/json"
+	"encoding/json"
 )
 
 
 //==============================================================================================================================
-//	 Structure Definitions 
+//	 Structure Definitions
 //==============================================================================================================================
 //	Chaincode - A blank struct for use with Shim (A HyperLedger included go file used for get/put state
 //				and other HyperLedger functions)
@@ -18,10 +18,15 @@ import (
 type  SimpleChaincode struct {
 }
 
+type CustRef struct {
+	entity_id  string
+	customer_ref string
+}
+
 //==============================================================================================================================
-//	Init Function - Called when the user deploys the chaincode																	
+//	Init Function - Called when the user deploys the chaincode
 //==============================================================================================================================
-func (t *SimpleChaincode) Init(stub *shim.ChaincodeStub, function string, args []string) ([]byte, error) {	
+func (t *SimpleChaincode) Init(stub *shim.ChaincodeStub, function string, args []string) ([]byte, error) {
 	return nil, nil
 }
 
@@ -32,62 +37,101 @@ func (t *SimpleChaincode) Init(stub *shim.ChaincodeStub, function string, args [
 //		  initial arguments passed to other things for use in the called function e.g. name -> ecert
 //==============================================================================================================================
 func (t *SimpleChaincode) Invoke(stub *shim.ChaincodeStub, function string, args []string) ([]byte, error) {
-	
+
 	//caller, caller_affiliation, err := t.get_caller_data(stub)
 
 	//if err != nil { return nil, errors.New("Error retrieving caller information")}
 
-	
+
 	if function == "register_customer" {
-    
-			if len(args) != 4 { fmt.Printf("Incorrect number of arguments passed"); return nil, errors.New("QUERY: Incorrect number of arguments passed") }
-            
-      customer_id := args[0]
-      receiver_id := args[1]
-      sender_id := args[2]
-      json_data := args[3]
-      
-      return t.register_customer(stub, customer_id, receiver_id, sender_id, json_data)
-      
-	} else if function == "delete_customer" { 
-    
-			if len(args) != 2 { fmt.Printf("Incorrect number of arguments passed"); return nil, errors.New("QUERY: Incorrect number of arguments passed") }
-            
-      customer_id := args[0]
-      sender_id := args[1]
-      
-      return t.delete_customer(stub, customer_id, sender_id)
-      
+
+		if len(args) != 4 {
+			fmt.Printf("Incorrect number of arguments passed"); return nil, errors.New("QUERY: Incorrect number of arguments passed")
+		}
+
+		customer_id := args[0]
+		receiver_id := args[1]
+		sender_id := args[2]
+		json_data := args[3]
+
+		return t.register_customer(stub, customer_id, receiver_id, sender_id, json_data)
+
+	} else if function == "delete_customer" {
+
+		if len(args) != 2 {
+			fmt.Printf("Incorrect number of arguments passed"); return nil, errors.New("QUERY: Incorrect number of arguments passed")
+		}
+
+		customer_id := args[0]
+		sender_id := args[1]
+
+		return t.delete_customer(stub, customer_id, sender_id)
+
+	} else if function == "register_customer_crossref" {
+
+		if len(args) != 3 {
+			fmt.Printf("Incorrect number of arguments passed"); return nil, errors.New("QUERY: Incorrect number of arguments passed")
+		}
+
+		customer_id := args[0]
+		entity_id := args[1]
+		customer_ref := args[2]
+
+		return t.register_customer_crossref(stub, customer_id,  entity_id , customer_ref )
+
+	} else if function == "delete_customer_crossref" {
+
+		if len(args) != 3 {
+			fmt.Printf("Incorrect number of arguments passed"); return nil, errors.New("QUERY: Incorrect number of arguments passed")
+		}
+
+		customer_id := args[0]
+		entity_id := args[1]
+		customer_ref := args[2]
+
+		return t.delete_customer_crossref(stub, customer_id,  entity_id , customer_ref )
+
 	}
-    
-    
-    return nil, errors.New("Function of that name doesn't exist.")
+
+	return nil, errors.New("Function of that name doesn't exist.")
 }
-//=================================================================================================================================	
+//=================================================================================================================================
 //	Query - Called on chaincode query. Takes a function name passed and calls that function. Passes the
 //  		initial arguments passed are passed on to the called function.
-//=================================================================================================================================	
+//=================================================================================================================================
 func (t *SimpleChaincode) Query(stub *shim.ChaincodeStub, function string, args []string) ([]byte, error) {
-	
 
 	if function == "get_customer" {
-    
-			if len(args) != 2 { fmt.Printf("Incorrect number of arguments passed"); return nil, errors.New("QUERY: Incorrect number of arguments passed") }
-            
-      customer_id := args[0]
-      receiver_id := args[1]
-      
-      return t.get_customer(stub, customer_id, receiver_id)
-      
-	
+
+		if len(args) != 2 {
+			fmt.Printf("Incorrect number of arguments passed"); return nil, errors.New("QUERY: Incorrect number of arguments passed")
+		}
+
+		customer_id := args[0]
+		receiver_id := args[1]
+
+		return t.get_customer(stub, customer_id, receiver_id)
+
 	} else if function == "get_all" {
-    
-		if len(args) != 0 { fmt.Printf("Incorrect number of arguments passed"); return nil, errors.New("QUERY: Incorrect number of arguments passed") }
-            
-      return t.get_all(stub)
-      
-	} 
-	return nil,errors.New("QUERY: No such function.") 
+
+		if len(args) != 0 {
+			fmt.Printf("Incorrect number of arguments passed"); return nil, errors.New("QUERY: Incorrect number of arguments passed")
+		}
+
+		return t.get_all(stub)
+
+	} else if function = "get_customer_crossref"{
+		if len(args) != 2 {
+			fmt.Printf("Incorrect number of arguments passed"); return nil, errors.New("QUERY: Incorrect number of arguments passed")
+		}
+
+		entity_id := args[0]
+		customer_ref := args[1]
+
+		return t.get_customer_crossref(stub, entity_id, customer_ref)
+
+	}
+	return nil, errors.New("QUERY: No such function.")
 
 }
 
@@ -97,120 +141,168 @@ func (t *SimpleChaincode) Query(stub *shim.ChaincodeStub, function string, args 
 
 func (t *SimpleChaincode) register_customer(stub *shim.ChaincodeStub, customer_id string, receiver_id string, sender_id string, json_data string) ([]byte, error) {
 
-  var data_key, scr_key, src_key, rsc_key, csr_key, crs_key string;
-  data_key, scr_key, src_key, rsc_key, csr_key, crs_key =  create_keys(customer_id, receiver_id, sender_id)
-  var err error
-  // register the value to KVS
-  fmt.Println("[DEBUG] PutState " + data_key + " , " + json_data )
-  err = stub.PutState(data_key, []byte(json_data))
-  if err != nil { return nil, errors.New("Unable to put the state") }
-  
-  // then, create index data
-  err = stub.PutState(scr_key,[]byte(data_key))
-  if err != nil { return nil, errors.New("Unable to put the state") }
-  err = stub.PutState(src_key,[]byte(data_key))
-  if err != nil { return nil, errors.New("Unable to put the state") }
-  err = stub.PutState(rsc_key,[]byte(data_key))
-  if err != nil { return nil, errors.New("Unable to put the state") }
-  err = stub.PutState(csr_key,[]byte(data_key))
-  if err != nil { return nil, errors.New("Unable to put the state") }
-  err = stub.PutState(crs_key,[]byte(data_key))
-  if err != nil { return nil, errors.New("Unable to put the state") }
-  
-  return nil, nil
+	var data_key, scr_key, src_key, rsc_key, csr_key, crs_key string;
+	data_key, scr_key, src_key, rsc_key, csr_key, crs_key = create_keys(customer_id, receiver_id, sender_id)
+	var err error
+	// register the value to KVS
+	fmt.Println("[DEBUG] PutState " + data_key + " , " + json_data)
+	err = stub.PutState(data_key, []byte(json_data))
+	if err != nil {
+		return nil, errors.New("Unable to put the state")
+	}
+
+	// then, create index data
+	err = stub.PutState(scr_key, []byte(data_key))
+	if err != nil {
+		return nil, errors.New("Unable to put the state")
+	}
+	err = stub.PutState(src_key, []byte(data_key))
+	if err != nil {
+		return nil, errors.New("Unable to put the state")
+	}
+	err = stub.PutState(rsc_key, []byte(data_key))
+	if err != nil {
+		return nil, errors.New("Unable to put the state")
+	}
+	err = stub.PutState(csr_key, []byte(data_key))
+	if err != nil {
+		return nil, errors.New("Unable to put the state")
+	}
+	err = stub.PutState(crs_key, []byte(data_key))
+	if err != nil {
+		return nil, errors.New("Unable to put the state")
+	}
+
+	return nil, nil
 
 }
 
 func (t *SimpleChaincode) delete_customer(stub *shim.ChaincodeStub, customer_id string, sender_id string) ([]byte, error) {
-  
-  keysIter, err := stub.RangeQueryState("SCR/"+sender_id+"/"+customer_id+"/","SCR/"+sender_id+"/"+customer_id+"/"+"|")
-  if err != nil { return nil, errors.New("Unable to start the iterator") }
-  
-  defer keysIter.Close()
-  
-  for keysIter.HasNext() {
-      key, _, iterErr := keysIter.Next()
-      if iterErr != nil {
-          return nil, fmt.Errorf("keys operation failed. Error accessing state: %s", err)
-      }
-      customer_id, receiver_id, sender_id  := parse_key(key)
-      data_key, scr_key, src_key, rsc_key, csr_key, crs_key :=  create_keys(customer_id, receiver_id, sender_id)
-      
-    // remove the value in KVS
-    err = stub.DelState(data_key)
-    if err != nil { return nil, errors.New("Unable to delete the state") }
 
-    // then, remove index data
-    err = stub.DelState(scr_key)
-    if err != nil { return nil, errors.New("Unable to delete the state") }
-    err = stub.DelState(src_key)
-    if err != nil { return nil, errors.New("Unable to delete the state") }
-    err = stub.DelState(rsc_key)
-    if err != nil { return nil, errors.New("Unable to delete the state") }
-    err = stub.DelState(csr_key)
-    if err != nil { return nil, errors.New("Unable to delete the state") }
-    err = stub.DelState(crs_key)
-    if err != nil { return nil, errors.New("Unable to delete the state") }
-  }
-  return nil, nil
+	keysIter, err := stub.RangeQueryState("SCR/" + sender_id + "/" + customer_id + "/", "SCR/" + sender_id + "/" + customer_id + "/" + "|")
+	if err != nil {
+		return nil, errors.New("Unable to start the iterator")
+	}
 
-}
+	defer keysIter.Close()
 
-func create_keys(customer_id string, receiver_id string, sender_id string) (data_key, scr_key, src_key, rsc_key, csr_key, crs_key string){
-  data_key = "D/"+receiver_id+"/"+customer_id+"/"+sender_id
-  scr_key = "SCR/"+sender_id+"/"+customer_id+"/"+receiver_id
-  src_key = "SRC/"+sender_id+"/"+receiver_id+"/"+customer_id
-  rsc_key = "RSC/"+receiver_id+"/"+sender_id+"/"+customer_id
-  csr_key = "CSR/"+customer_id+"/"+sender_id+"/"+receiver_id
-  crs_key = "CRS/"+customer_id+"/"+receiver_id+"/"+sender_id
-  return
-}
+	for keysIter.HasNext() {
+		key, _, iterErr := keysIter.Next()
+		if iterErr != nil {
+			return nil, fmt.Errorf("keys operation failed. Error accessing state: %s", err)
+		}
+		customer_id, receiver_id, sender_id := parse_key(key)
+		data_key, scr_key, src_key, rsc_key, csr_key, crs_key := create_keys(customer_id, receiver_id, sender_id)
 
-func get_key(key_type string, customer_id string, receiver_id string, sender_id string) (string){
+		// remove the value in KVS
+		err = stub.DelState(data_key)
+		if err != nil {
+			return nil, errors.New("Unable to delete the state")
+		}
 
-  switch key_type {
-    case "data_key" :
-      return "D/"+receiver_id+"/"+customer_id+"/"+sender_id
-    case "scr_key" :
-      return "SCR/"+sender_id+"/"+customer_id+"/"+receiver_id
-    case "src_key" :
-      return "SRC/"+sender_id+"/"+receiver_id+"/"+customer_id
-    case "rsc_key" :
-      return "RSC/"+receiver_id+"/"+sender_id+"/"+customer_id
-    case "csr_key" :
-      return "CSR/"+customer_id+"/"+sender_id+"/"+receiver_id
-    case "crs_key" :
-      return "CRS/"+customer_id+"/"+receiver_id+"/"+sender_id
-  }
-  return ""
-}
-
-func convert_key(key_type string, current_key string) (string){
-
-  customer_id, receiver_id, sender_id  := parse_key(current_key)  
-  return get_key(key_type, customer_id, receiver_id, sender_id)
+		// then, remove index data
+		err = stub.DelState(scr_key)
+		if err != nil {
+			return nil, errors.New("Unable to delete the state")
+		}
+		err = stub.DelState(src_key)
+		if err != nil {
+			return nil, errors.New("Unable to delete the state")
+		}
+		err = stub.DelState(rsc_key)
+		if err != nil {
+			return nil, errors.New("Unable to delete the state")
+		}
+		err = stub.DelState(csr_key)
+		if err != nil {
+			return nil, errors.New("Unable to delete the state")
+		}
+		err = stub.DelState(crs_key)
+		if err != nil {
+			return nil, errors.New("Unable to delete the state")
+		}
+	}
+	return nil, nil
 
 }
 
-func parse_key(key string) (customer_id string, receiver_id string, sender_id string){
-  str := strings.Split("/",key)
-  if len(str) != 4 {return "","","" }
-  
-  switch str[0] {
-    case "D" :
-      receiver_id=str[1]; customer_id=str[2]; sender_id=str[3]
-    case "SCR" :
-      sender_id=str[1]; customer_id=str[2]; receiver_id=str[3]
-    case "SRC" :
-      sender_id=str[1]; receiver_id=str[2]; customer_id=str[3]
-    case "RSC" :
-      receiver_id=str[1]; sender_id=str[2]; customer_id=str[3]
-    case "CSR" :
-      customer_id=str[1]; sender_id=str[2]; receiver_id=str[3]
-    case "CRS" :
-      customer_id=str[1]; receiver_id=str[2]; sender_id=str[3]
-  }
-  return
+func (t *SimpleChaincode) register_customer_crossref(stub *shim.ChaincodeStub,customer_id string, entity_id string, customer_ref string) ([]byte, error) {
+
+	key := "CUSTID/"+customer_id
+	bytes, err := stub.GetState(key)
+	if err != nil {
+		// it is first time to register this customer.
+	}
+
+	var cust_refs []CustRef
+	err = json.Unmarshal(bytes, &cust_refs)
+	if err != nil {	return nil, errors.New("Corrupt CustRef record") }
+
+	//find duplicate
+	for _, ref := range cust_refs {
+		if (ref.customer_ref == customer_ref && ref.entity_id == entity_id) {
+			return nil, errors.New("Duplicate CustRef record")
+		}
+	}
+
+	cust_refs = append(cust_refs, CustRef{entity_id:entity_id, customer_ref:customer_ref})
+
+	bytes, err = json.Marshal(cust_refs)
+	if err != nil { return nil, errors.New("Error creating CustRef record") }
+
+	err = stub.PutState(key, bytes)
+	if err != nil { return nil, errors.New("Unable to put the state") }
+
+	// register ref key
+	ref_key := "CUSTREF/"+entity_id+"/"+customer_ref
+
+	err = stub.PutState(ref_key, []byte(key))
+	if err != nil { return nil, errors.New("Unable to put the state") }
+
+}
+
+func (t *SimpleChaincode) delete_customer_crossref(stub *shim.ChaincodeStub,customer_id string, entity_id string, customer_ref string) ([]byte, error) {
+
+	key := "CUSTID/"+customer_id
+	bytes, err := stub.GetState(key)
+	if err != nil {
+		return nil, errors.New("Corrupt CustRef record / customer record not found")
+	}
+
+	var cust_refs []CustRef
+	err = json.Unmarshal(bytes, &cust_refs)
+	if err != nil {	return nil, errors.New("Corrupt CustRef record") }
+
+	//find entry
+	for i := len(cust_refs) - 1; i >= 0; i-- {
+		ref:=cust_refs[i]
+		if (ref.customer_ref == customer_ref && ref.entity_id == entity_id) {
+			// found, take this element from cust_ref
+			cust_refs = append(cust_refs[:i],cust_refs[i+1:]...)
+			break
+		}
+	}
+
+	if len(cust_refs) == 0 {
+		err = stub.DelState(key)
+		if err != nil { return nil, errors.New("Unable to delete the state") }
+	} else {
+		bytes, err = json.Marshal(cust_refs)
+		if err != nil {
+			return nil, errors.New("Error creating CustRef record")
+		}
+
+		err = stub.PutState(key, bytes)
+		if err != nil {
+			return nil, errors.New("Unable to put the state")
+		}
+	}
+	// delete ref key
+	ref_key := "CUSTREF/"+entity_id+"/"+customer_ref
+
+	err = stub.DelState(ref_key)
+	if err != nil { return nil, errors.New("Unable to delete the state") }
+
 }
 
 //=================================================================================================================================
@@ -219,55 +311,142 @@ func parse_key(key string) (customer_id string, receiver_id string, sender_id st
 
 func (t *SimpleChaincode) get_customer(stub *shim.ChaincodeStub, customer_id string, receiver_id string) ([]byte, error) {
 
-  result := "["
+	result := "["
 
-  keysIter, err := stub.RangeQueryState("D/"+receiver_id+"/"+customer_id+"/","D/"+receiver_id+"/"+customer_id+"/"+"|")
-  if err != nil { return nil, errors.New("Unable to start the iterator") }
+	keysIter, err := stub.RangeQueryState("D/" + receiver_id + "/" + customer_id + "/", "D/" + receiver_id + "/" + customer_id + "/" + "|")
+	if err != nil {
+		return nil, errors.New("Unable to start the iterator")
+	}
 
-  defer keysIter.Close()
+	defer keysIter.Close()
 
-  for keysIter.HasNext() {
-      key, val, iterErr := keysIter.Next()
-      if iterErr != nil {
-          return nil, fmt.Errorf("keys operation failed. Error accessing state: %s", err)
-      }
-      result += " [ " + key + " , " +  string(val) + " ] ,"
-}
-	
+	for keysIter.HasNext() {
+		key, val, iterErr := keysIter.Next()
+		if iterErr != nil {
+			return nil, fmt.Errorf("keys operation failed. Error accessing state: %s", err)
+		}
+		result += " [ " + key + " , " + string(val) + " ] ,"
+	}
+
 	if len(result) == 1 {
 		result = "[]"
 	} else {
-		result = result[:len(result)-1] + "]"
+		result = result[:len(result) - 1] + "]"
 	}
-	
+
 	return []byte(result), nil
 }
 func (t *SimpleChaincode) get_all(stub *shim.ChaincodeStub) ([]byte, error) {
 
-  result := "["
+	result := "["
 
-  keysIter, err := stub.RangeQueryState("","~")
-  if err != nil { return nil, errors.New("Unable to start the iterator") }
+	keysIter, err := stub.RangeQueryState("", "~")
+	if err != nil {
+		return nil, errors.New("Unable to start the iterator")
+	}
 
-  defer keysIter.Close()
+	defer keysIter.Close()
 
-  for keysIter.HasNext() {
-      key, val, iterErr := keysIter.Next()
-      if iterErr != nil {
-          return nil, fmt.Errorf("keys operation failed. Error accessing state: %s", err)
-      }
-      result += " [ " + key + " , " +  string(val) + " ] ,"
-	
-}
-	
+	for keysIter.HasNext() {
+		key, val, iterErr := keysIter.Next()
+		if iterErr != nil {
+			return nil, fmt.Errorf("keys operation failed. Error accessing state: %s", err)
+		}
+		result += " [ " + key + " , " + string(val) + " ] ,"
+
+	}
+
 	if len(result) == 1 {
 		result = "[]"
 	} else {
-		result = result[:len(result)-1] + "]"
+		result = result[:len(result) - 1] + "]"
 	}
-	
+
 	return []byte(result), nil
 }
+func (t *SimpleChaincode) get_customer_crossref(stub *shim.ChaincodeStub, entity_id string, customer_ref string) ([]byte, error) {
+
+	var jsonResp
+	key:="CUSTREF/"+entity_id+"/"+customer_ref
+	datakeyAsbytes, err := stub.GetState(key)
+	if err != nil {
+		jsonResp = "{\"Error\":\"Failed to get state for " + key + "\"}"
+		return nil, errors.New(jsonResp)
+	}
+	datakey:=string(datakeyAsbytes)
+	valAsbytes, err := stub.GetState(datakey)
+	if err != nil {
+		jsonResp = "{\"Error\":\"Failed to get state for " + datakey + "\"}"
+		return nil, errors.New(jsonResp)
+	}
+
+	return []byte(valAsbytes), nil
+}
+
+
+
+//=================================================================================================================================
+//	 Utility functions
+//=================================================================================================================================
+func create_keys(customer_id string, receiver_id string, sender_id string) (data_key, scr_key, src_key, rsc_key, csr_key, crs_key string) {
+	data_key = "D/" + receiver_id + "/" + customer_id + "/" + sender_id
+	scr_key = "SCR/" + sender_id + "/" + customer_id + "/" + receiver_id
+	src_key = "SRC/" + sender_id + "/" + receiver_id + "/" + customer_id
+	rsc_key = "RSC/" + receiver_id + "/" + sender_id + "/" + customer_id
+	csr_key = "CSR/" + customer_id + "/" + sender_id + "/" + receiver_id
+	crs_key = "CRS/" + customer_id + "/" + receiver_id + "/" + sender_id
+	return
+}
+
+func get_key(key_type string, customer_id string, receiver_id string, sender_id string) (string) {
+
+	switch key_type {
+	case "data_key" :
+		return "D/" + receiver_id + "/" + customer_id + "/" + sender_id
+	case "scr_key" :
+		return "SCR/" + sender_id + "/" + customer_id + "/" + receiver_id
+	case "src_key" :
+		return "SRC/" + sender_id + "/" + receiver_id + "/" + customer_id
+	case "rsc_key" :
+		return "RSC/" + receiver_id + "/" + sender_id + "/" + customer_id
+	case "csr_key" :
+		return "CSR/" + customer_id + "/" + sender_id + "/" + receiver_id
+	case "crs_key" :
+		return "CRS/" + customer_id + "/" + receiver_id + "/" + sender_id
+	}
+	return ""
+}
+
+func convert_key(key_type string, current_key string) (string) {
+
+	customer_id, receiver_id, sender_id := parse_key(current_key)
+	return get_key(key_type, customer_id, receiver_id, sender_id)
+
+}
+
+func parse_key(key string) (customer_id string, receiver_id string, sender_id string) {
+	str := strings.Split("/", key)
+	if len(str) != 4 {
+		return "", "", ""
+	}
+
+	switch str[0] {
+	case "D" :
+		receiver_id = str[1]; customer_id = str[2]; sender_id = str[3]
+	case "SCR" :
+		sender_id = str[1]; customer_id = str[2]; receiver_id = str[3]
+	case "SRC" :
+		sender_id = str[1]; receiver_id = str[2]; customer_id = str[3]
+	case "RSC" :
+		receiver_id = str[1]; sender_id = str[2]; customer_id = str[3]
+	case "CSR" :
+		customer_id = str[1]; sender_id = str[2]; receiver_id = str[3]
+	case "CRS" :
+		customer_id = str[1]; receiver_id = str[2]; sender_id = str[3]
+	}
+	return
+}
+
 
 //=================================================================================================================================
 //	 Main - main - Starts up the chaincode
@@ -275,7 +454,8 @@ func (t *SimpleChaincode) get_all(stub *shim.ChaincodeStub) ([]byte, error) {
 func main() {
 
 	err := shim.Start(new(SimpleChaincode))
-	if err != nil { fmt.Printf("Error starting Chaincode: %s", err) }
+	if err != nil {
+		fmt.Printf("Error starting Chaincode: %s", err)
+	}
 }
-
 
