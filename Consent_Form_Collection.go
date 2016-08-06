@@ -18,9 +18,14 @@ import (
 type  SimpleChaincode struct {
 }
 
+// Customer Reference data. Each CUSTID has 1 CustRef_Holder in Keyvalue, where many CustRefs are stored
 type CustRef struct {
-	entity_id  string
-	customer_ref string
+	entity_id  string `json:"entity_id"`
+	customer_ref string `json:"customer_ref"`
+}
+
+type CustRef_Holder struct {
+	CustRefs 	[]CustRef `json:"custrefs"`
 }
 
 //==============================================================================================================================
@@ -228,30 +233,26 @@ func (t *SimpleChaincode) delete_customer(stub *shim.ChaincodeStub, customer_id 
 
 func (t *SimpleChaincode) register_customer_crossref(stub *shim.ChaincodeStub,customer_id string, entity_id string, customer_ref string) ([]byte, error) {
 
-	var cust_refs []CustRef
+	var cust_refs CustRef_Holder
 
 	key := "CUSTID/"+customer_id
 	bytes, err := stub.GetState(key)
-	if err != nil {
-		// it is first time to register this customer.
-		return nil, errors.New("Error in GetState: " + err.Error())
-	}else {
-		if len(bytes) > 0 {
-			err = json.Unmarshal(bytes, &cust_refs)
-			if err != nil {
-				return nil, errors.New("Corrupt CustRef record: " + err.Error() + string(bytes))
-			}
-			//find duplicate
-			for _, ref := range cust_refs {
-				if (ref.customer_ref == customer_ref && ref.entity_id == entity_id) {
-					return nil, errors.New("Duplicate CustRef record")
-				}
+	if err != nil { return nil, errors.New("Error in GetState: " + err.Error())	}
+
+	if len(bytes) > 0 {
+		err = json.Unmarshal(bytes, &cust_refs)
+		if err != nil {
+			return nil, errors.New("Corrupt CustRef record: " + err.Error() + string(bytes))
+		}
+		//find duplicate
+		for _, ref := range cust_refs.CustRefs {
+			if (ref.customer_ref == customer_ref && ref.entity_id == entity_id) {
+				return nil, errors.New("Duplicate CustRef record")
 			}
 		}
 	}
 
-
-	cust_refs = append(cust_refs, CustRef{entity_id:entity_id, customer_ref:customer_ref})
+	cust_refs.CustRefs = append(cust_refs.CustRefs, CustRef{entity_id:entity_id, customer_ref:customer_ref})
 
 	bytes, err = json.Marshal(cust_refs)
 	if err != nil { return nil, errors.New("Error creating CustRef record") }
@@ -276,21 +277,21 @@ func (t *SimpleChaincode) delete_customer_crossref(stub *shim.ChaincodeStub,cust
 		return nil, errors.New("Corrupt CustRef record / customer record not found")
 	}
 
-	var cust_refs []CustRef
+	var cust_refs CustRef_Holder
 	err = json.Unmarshal(bytes, &cust_refs)
-	if err != nil {	return nil, errors.New("Corrupt CustRef record") }
+	if err != nil {	return nil, errors.New("Corrupt CustRef record:" + string(bytes)) }
 
 	//find entry
-	for i := len(cust_refs) - 1; i >= 0; i-- {
-		ref:=cust_refs[i]
+	for i := len(cust_refs.CustRefs) - 1; i >= 0; i-- {
+		ref:=cust_refs.CustRefs[i]
 		if (ref.customer_ref == customer_ref && ref.entity_id == entity_id) {
 			// found, take this element from cust_ref
-			cust_refs = append(cust_refs[:i],cust_refs[i+1:]...)
+			cust_refs.CustRefs = append(cust_refs.CustRefs[:i],cust_refs.CustRefs[i+1:]...)
 			break
 		}
 	}
 
-	if len(cust_refs) == 0 {
+	if len(cust_refs.CustRefs) == 0 {
 		err = stub.DelState(key)
 		if err != nil { return nil, errors.New("Unable to delete the state") }
 	} else {
