@@ -20,8 +20,8 @@ type  SimpleChaincode struct {
 
 // Customer Reference data. Each CUSTID has 1 CustRef_Holder in Keyvalue, where many CustRefs are stored
 type CustRef struct {
-	entity_id  string `json:"entity_id"`
-	customer_ref string `json:"customer_ref"`
+	EntityId  string `json:"entity_id"`
+	CustomerRef string `json:"customer_ref"`
 }
 
 type CustRef_Holder struct {
@@ -246,13 +246,13 @@ func (t *SimpleChaincode) register_customer_crossref(stub *shim.ChaincodeStub,cu
 		}
 		//find duplicate
 		for _, ref := range cust_refs.CustRefs {
-			if (ref.customer_ref == customer_ref && ref.entity_id == entity_id) {
+			if (ref.CustomerRef == customer_ref && ref.EntityId == entity_id) {
 				return nil, errors.New("Duplicate CustRef record")
 			}
 		}
 	}
 
-	cust_refs.CustRefs = append(cust_refs.CustRefs, CustRef{entity_id:entity_id, customer_ref:customer_ref})
+	cust_refs.CustRefs = append(cust_refs.CustRefs, CustRef{EntityId:entity_id, CustomerRef:customer_ref})
 
 	bytes, err = json.Marshal(cust_refs)
 	if err != nil { return nil, errors.New("Error creating CustRef record") }
@@ -284,7 +284,7 @@ func (t *SimpleChaincode) delete_customer_crossref(stub *shim.ChaincodeStub,cust
 	//find entry
 	for i := len(cust_refs.CustRefs) - 1; i >= 0; i-- {
 		ref:=cust_refs.CustRefs[i]
-		if (ref.customer_ref == customer_ref && ref.entity_id == entity_id) {
+		if (ref.CustomerRef == customer_ref && ref.EntityId == entity_id) {
 			// found, take this element from cust_ref
 			cust_refs.CustRefs = append(cust_refs.CustRefs[:i],cust_refs.CustRefs[i+1:]...)
 			break
