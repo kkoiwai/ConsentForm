@@ -6,6 +6,7 @@ import (
 	"strings"
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	"encoding/json"
+	"regexp"
 )
 
 
@@ -146,6 +147,11 @@ func (t *SimpleChaincode) Query(stub *shim.ChaincodeStub, function string, args 
 
 func (t *SimpleChaincode) register_customer(stub *shim.ChaincodeStub, customer_id string, receiver_id string, sender_id string, json_data string) ([]byte, error) {
 
+
+	if(!valid_key(customer_id)||!valid_key(receiver_id)||!valid_key(sender_id)){
+		return nil, errors.New("Invalid arguments")
+	}
+
 	var data_key, scr_key, src_key, rsc_key, csr_key, crs_key string;
 	data_key, scr_key, src_key, rsc_key, csr_key, crs_key = create_keys(customer_id, receiver_id, sender_id)
 	var err error
@@ -183,6 +189,11 @@ func (t *SimpleChaincode) register_customer(stub *shim.ChaincodeStub, customer_i
 }
 
 func (t *SimpleChaincode) delete_customer(stub *shim.ChaincodeStub, customer_id string, sender_id string) ([]byte, error) {
+
+
+	if(!valid_key(customer_id)||!valid_key(sender_id)){
+		return nil, errors.New("Invalid arguments")
+	}
 
 	keysIter, err := stub.RangeQueryState("SCR/" + sender_id + "/" + customer_id + "/", "SCR/" + sender_id + "/" + customer_id + "/" + "|")
 	if err != nil {
@@ -233,6 +244,16 @@ func (t *SimpleChaincode) delete_customer(stub *shim.ChaincodeStub, customer_id 
 
 func (t *SimpleChaincode) register_customer_crossref(stub *shim.ChaincodeStub,customer_id string, entity_id string, customer_ref string) ([]byte, error) {
 
+	if(!valid_key(customer_id)||!valid_key(entity_id)||!valid_key(customer_ref)){
+		return nil, errors.New("Invalid arguments")
+	}
+	// check first to see if the crossref is already registered
+	ckey:="CUSTREF/"+entity_id+"/"+customer_ref
+	_, err := stub.GetState(ckey)
+	if err == nil { //found
+		return nil, errors.New("Duplicate CustRef record")
+	}
+
 	var cust_refs CustRef_Holder
 
 	key := "CUSTID/"+customer_id
@@ -270,6 +291,11 @@ func (t *SimpleChaincode) register_customer_crossref(stub *shim.ChaincodeStub,cu
 }
 
 func (t *SimpleChaincode) delete_customer_crossref(stub *shim.ChaincodeStub,customer_id string, entity_id string, customer_ref string) ([]byte, error) {
+
+
+	if(!valid_key(customer_id)||!valid_key(entity_id)||!valid_key(customer_ref)){
+		return nil, errors.New("Invalid arguments")
+	}
 
 	key := "CUSTID/"+customer_id
 	bytes, err := stub.GetState(key)
@@ -455,6 +481,10 @@ func parse_key(key string) (customer_id string, receiver_id string, sender_id st
 		customer_id = str[1]; receiver_id = str[2]; sender_id = str[3]
 	}
 	return
+}
+
+func valid_key(key string)(bool){
+	return regexp.MatchString("\\w", key)
 }
 
 
