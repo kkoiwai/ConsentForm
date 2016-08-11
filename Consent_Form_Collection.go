@@ -249,8 +249,9 @@ func (t *SimpleChaincode) register_customer_crossref(stub *shim.ChaincodeStub,cu
 	}
 	// check first to see if the crossref is already registered
 	ckey:="CUSTREF/"+entity_id+"/"+customer_ref
-	_, err := stub.GetState(ckey)
-	if err == nil { //found
+	cval, err := stub.GetState(ckey)
+	if err != nil { return nil, errors.New("Error in GetState: " + err.Error())	}
+	if len(cval) > 0 { //found
 		return nil, errors.New("Duplicate CustRef record")
 	}
 
