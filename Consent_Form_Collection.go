@@ -87,15 +87,14 @@ func (t *SimpleChaincode) Invoke(stub *shim.ChaincodeStub, function string, args
 
 	} else if function == "delete_customer_crossref" {
 
-		if len(args) != 3 {
+		if len(args) != 2 {
 			fmt.Printf("Incorrect number of arguments passed"); return nil, errors.New("QUERY: Incorrect number of arguments passed")
 		}
 
-		customer_id := args[0]
-		entity_id := args[1]
-		customer_ref := args[2]
+		entity_id := args[0]
+		customer_ref := args[1]
 
-		return t.delete_customer_crossref(stub, customer_id,  entity_id , customer_ref )
+		return t.delete_customer_crossref(stub,  entity_id , customer_ref )
 
 	}
 
@@ -291,14 +290,23 @@ func (t *SimpleChaincode) register_customer_crossref(stub *shim.ChaincodeStub,cu
 
 }
 
-func (t *SimpleChaincode) delete_customer_crossref(stub *shim.ChaincodeStub,customer_id string, entity_id string, customer_ref string) ([]byte, error) {
+func (t *SimpleChaincode) delete_customer_crossref(stub *shim.ChaincodeStub, entity_id string, customer_ref string) ([]byte, error) {
 
 
-	if(!valid_key(customer_id)||!valid_key(entity_id)||!valid_key(customer_ref)){
+	if(!valid_key(entity_id)||!valid_key(customer_ref)){
 		return nil, errors.New("Invalid arguments")
 	}
 
-	key := "CUSTID/"+customer_id
+	ckey:="CUSTREF/"+entity_id+"/"+customer_ref
+	datakeyAsbytes, err := stub.GetState(ckey)
+	if err != nil {
+		jsonResp := "{\"Error\":\"Failed to get state for " + ckey + "\"}"
+		return nil, errors.New(jsonResp)
+	}
+
+	key:=string(datakeyAsbytes)
+
+	//key := "CUSTID/"+customer_id
 	bytes, err := stub.GetState(key)
 	if err != nil {
 		return nil, errors.New("Corrupt CustRef record / customer record not found")
