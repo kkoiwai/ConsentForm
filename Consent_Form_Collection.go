@@ -484,7 +484,8 @@ func parse_key(key string) (customer_id string, receiver_id string, sender_id st
 }
 
 func valid_key(key string)(bool){
-	return regexp.MatchString("\\w", key)
+	match, _ :=  regexp.MatchString("\\w", key)
+	return match
 }
 
 
