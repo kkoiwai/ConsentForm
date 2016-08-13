@@ -29,6 +29,15 @@ type CustRef_Holder struct {
 	CustRefs 	[]CustRef `json:"custrefs"`
 }
 
+type Entity struct {
+	EntityId  string `json:"entity_id"`
+	EntityName string `json:"entity_name"`
+	EntityPublicKey string `json:"entity_public_key"`
+}
+type Entity_Holder struct {
+	Entities []Entity `json:"entities"`
+}
+
 //==============================================================================================================================
 //	Init Function - Called when the user deploys the chaincode
 //==============================================================================================================================
@@ -96,6 +105,27 @@ func (t *SimpleChaincode) Invoke(stub *shim.ChaincodeStub, function string, args
 
 		return t.delete_customer_crossref(stub,  entity_id , customer_ref )
 
+	} else if function == "register_entity" {
+
+		if len(args) != 3 {
+			fmt.Printf("Incorrect number of arguments passed"); return nil, errors.New("QUERY: Incorrect number of arguments passed")
+		}
+
+		entity_id := args[0]
+		entity_name := args[1]
+		entity_public_key := args[1]
+
+		return t.register_entity(stub,  entity_id , entity_name, entity_public_key )
+
+	}else if function == "delete_entity" {
+
+		if len(args) != 1 {
+			fmt.Printf("Incorrect number of arguments passed"); return nil, errors.New("QUERY: Incorrect number of arguments passed")
+		}
+
+		entity_id := args[0]
+
+		return t.delete_entity(stub,  entity_id )
 	}
 
 	return nil, errors.New("Function of that name doesn't exist.")
@@ -349,6 +379,80 @@ func (t *SimpleChaincode) delete_customer_crossref(stub *shim.ChaincodeStub, ent
 
 }
 
+func (t *SimpleChaincode) register_entity(stub *shim.ChaincodeStub, entity_id string, entity_name string, entity_public_key string) ([]byte, error) {
+
+	if(!valid_key(entity_id)||len(entity_public_key)==0){
+		return nil, errors.New("Invalid arguments")
+	}
+	ekey:= "ENTID/"+entity_id
+
+
+	// check if the record already exists.
+	// If exists, further check if customer data that was sent to the entity exists.
+	// You can"t delete or modify the public key if such customer data exists.
+	eval, err := stub.GetState(ekey)
+	if err != nil { return nil, errors.New("Error in GetState: " + err.Error())	}
+	if len(eval) > 0 { //found
+		var entity_existed Entity
+		err = json.Unmarshal(eval, &entity_existed)
+		if err != nil { return nil, errors.New("Corrupt Entity record: " + err.Error() + string(eval))}
+		receiver_id := entity_existed.EntityId
+		keysIter, err := stub.RangeQueryState("D/" + receiver_id + "/" , "D/" + receiver_id + "/" + "|")
+		if err != nil { return nil, errors.New("Unable to start the iterator")}
+		defer keysIter.Close()
+		if keysIter.HasNext() && entity_existed.EntityPublicKey != entity_public_key{
+			return nil, errors.New("You can't modify existing entity record if customer data exists")
+		}
+	}
+
+	entity_data:= Entity{ EntityId:entity_id , EntityName:entity_name , EntityPublicKey:entity_public_key }
+
+	bytes, err := json.Marshal(entity_data)
+	if err != nil { return nil, errors.New("Error creating Entity record") }
+
+	err = stub.PutState(ekey, []byte(bytes))
+	if err != nil {
+		return nil, errors.New("Unable to put the state")
+	}
+
+	return nil, nil
+
+}
+
+func (t *SimpleChaincode) delete_entity(stub *shim.ChaincodeStub, entity_id string) ([]byte, error) {
+
+	if(!valid_key(entity_id)){
+		return nil, errors.New("Invalid arguments")
+	}
+	ekey:= "ENTID/"+entity_id
+
+	// check if the record already exists.
+	// If exists, further check if customer data that was sent to the entity exists.
+	// You can"t delete or modify the public key if such customer data exists.
+	eval, err := stub.GetState(ekey)
+	if err != nil { return nil, errors.New("Error in GetState: " + err.Error())	}
+	if len(eval) > 0 { //found
+		var entity_existed Entity
+		err = json.Unmarshal(eval, &entity_existed)
+		if err != nil { return nil, errors.New("Corrupt Entity record: " + err.Error() + string(eval))}
+		receiver_id := entity_existed.EntityId
+		keysIter, err := stub.RangeQueryState("D/" + receiver_id + "/" , "D/" + receiver_id + "/" + "|")
+		if err != nil { return nil, errors.New("Unable to start the iterator")}
+		defer keysIter.Close()
+		if keysIter.HasNext() {
+			return nil, errors.New("You can't delete existing entity record if customer data exists")
+		}
+	}
+
+	err = stub.DelState(ekey)
+	if err != nil {
+		return nil, errors.New("Unable to delete the state")
+	}
+
+	return nil, nil
+
+}
+
 //=================================================================================================================================
 //	 Query functions
 //=================================================================================================================================
@@ -428,6 +532,35 @@ func (t *SimpleChaincode) get_customer_crossref(stub *shim.ChaincodeStub, entity
 	return []byte(valAsbytes), nil
 }
 
+func (t *SimpleChaincode) get_all_entities(stub *shim.ChaincodeStub) ([]byte, error) {
+
+	var entities Entity_Holder
+	var ent Entity
+
+	keysIter, err := stub.RangeQueryState("ENTID/", "ENTID/~")
+	if err != nil {
+		return nil, errors.New("Unable to start the iterator")
+	}
+
+	defer keysIter.Close()
+
+	for keysIter.HasNext() {
+		_, val, iterErr := keysIter.Next()
+		if iterErr != nil {
+			return nil, fmt.Errorf("keys operation failed. Error accessing state: %s", err)
+		}
+		err = json.Unmarshal(val,&ent)
+		if err != nil { return nil, errors.New("Error creating Entity record") }
+		entities.Entities = append(entities.Entities,ent)
+	}
+
+
+	bytes, err := json.Marshal(entities)
+	if err != nil {
+		return nil, errors.New("Error creating Entities record")
+	}
+	return bytes, nil
+}
 
 
 //=================================================================================================================================
