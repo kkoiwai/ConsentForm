@@ -564,7 +564,7 @@ func (t *SimpleChaincode) get_all_entities(stub *shim.ChaincodeStub) ([]byte, er
 	if err != nil {
 		return nil, errors.New("Error creating Entities record")
 	}
-	return bytes, nil
+	return []byte(bytes), nil
 }
 
 
