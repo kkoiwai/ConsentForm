@@ -165,6 +165,12 @@ func (t *SimpleChaincode) Query(stub *shim.ChaincodeStub, function string, args 
 
 		return t.get_customer_crossref(stub, entity_id, customer_ref)
 
+	} else if function == "get_all_entities" {
+
+		if len(args) != 0 {
+		fmt.Printf("Incorrect number of arguments passed"); return nil, errors.New("QUERY: Incorrect number of arguments passed")
+		}
+		return t.get_all_entities(stub)
 	}
 	return nil, errors.New("QUERY: No such function.")
 
