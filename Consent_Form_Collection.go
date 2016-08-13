@@ -554,7 +554,6 @@ func (t *SimpleChaincode) get_all_entities(stub *shim.ChaincodeStub) ([]byte, er
 		entities.Entities = append(entities.Entities,ent)
 	}
 
-
 	bytes, err := json.Marshal(entities)
 	if err != nil {
 		return nil, errors.New("Error creating Entities record")
