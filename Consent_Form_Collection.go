@@ -113,7 +113,7 @@ func (t *SimpleChaincode) Invoke(stub *shim.ChaincodeStub, function string, args
 
 		entity_id := args[0]
 		entity_name := args[1]
-		entity_public_key := args[1]
+		entity_public_key := args[2]
 
 		return t.register_entity(stub,  entity_id , entity_name, entity_public_key )
 
