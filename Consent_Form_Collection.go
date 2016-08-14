@@ -24,7 +24,6 @@ type CustRef struct {
 	EntityId  string `json:"entity_id"`
 	CustomerRef string `json:"customer_ref"`
 }
-
 type CustRef_Holder struct {
 	CustRefs 	[]CustRef `json:"custrefs"`
 }
@@ -36,6 +35,16 @@ type Entity struct {
 }
 type Entity_Holder struct {
 	Entities []Entity `json:"entities"`
+}
+
+type CustomerData struct {
+	CustomerId  string `json:"customer_id"`
+	SenderId string `json:"sender_id"`
+	ReceiverId string `json:"receiver_id"`
+	Content string `json:"content"`
+}
+type CustomerData_Holder struct {
+	Entries []CustomerData `json:"entries"`
 }
 
 //==============================================================================================================================
@@ -171,6 +180,23 @@ func (t *SimpleChaincode) Query(stub *shim.ChaincodeStub, function string, args 
 		fmt.Printf("Incorrect number of arguments passed"); return nil, errors.New("QUERY: Incorrect number of arguments passed")
 		}
 		return t.get_all_entities(stub)
+
+	}else if function == "get_customers_by_sender_id" {
+
+		if len(args) != 1 {
+			fmt.Printf("Incorrect number of arguments passed"); return nil, errors.New("QUERY: Incorrect number of arguments passed")
+		}
+		sender_id := args[0]
+		return t.get_customers_by_sender_id(stub,sender_id)
+
+	}else if function == "get_customers_by_receiver_id" {
+
+		if len(args) != 1 {
+			fmt.Printf("Incorrect number of arguments passed"); return nil, errors.New("QUERY: Incorrect number of arguments passed")
+		}
+		receiver_id := args[0]
+		return t.get_customers_by_receiver_id(stub,receiver_id)
+
 	}
 	return nil, errors.New("QUERY: No such function.")
 
@@ -465,9 +491,11 @@ func (t *SimpleChaincode) delete_entity(stub *shim.ChaincodeStub, entity_id stri
 
 func (t *SimpleChaincode) get_customer(stub *shim.ChaincodeStub, customer_id string, receiver_id string) ([]byte, error) {
 
-	result := "["
+	var entries CustomerData_Holder
+	var ent CustomerData
 
-	keysIter, err := stub.RangeQueryState("D/" + receiver_id + "/" + customer_id + "/", "D/" + receiver_id + "/" + customer_id + "/" + "|")
+	keysIter, err := stub.RangeQueryState("D/" + receiver_id + "/" + customer_id + "/", "D/" + receiver_id + "/" + customer_id + "/" + "~")
+
 	if err != nil {
 		return nil, errors.New("Unable to start the iterator")
 	}
@@ -475,21 +503,97 @@ func (t *SimpleChaincode) get_customer(stub *shim.ChaincodeStub, customer_id str
 	defer keysIter.Close()
 
 	for keysIter.HasNext() {
-		key, val, iterErr := keysIter.Next()
+		datakeyAsbytes, dataAsBytes, iterErr := keysIter.Next()
 		if iterErr != nil {
 			return nil, fmt.Errorf("keys operation failed. Error accessing state: %s", err)
 		}
-		result += " [ " + key + " , " + string(val) + " ] ,"
+		datakey:=string(datakeyAsbytes)
+
+		customer_id , receiver_id, sender_id := parse_key(datakey)
+
+		ent = CustomerData{ CustomerId:customer_id , ReceiverId:receiver_id, SenderId:sender_id, Content:string(dataAsBytes)}
+
+		entries.Entries = append(entries.Entries,ent)
 	}
 
-	if len(result) == 1 {
-		result = "[]"
-	} else {
-		result = result[:len(result) - 1] + "]"
+	bytes, err := json.Marshal(entries)
+	if err != nil {
+		return nil, errors.New("Error creating CustomerData record")
 	}
+	return []byte(bytes), nil
 
-	return []byte(result), nil
 }
+
+func (t *SimpleChaincode) get_customers_by_sender_id(stub *shim.ChaincodeStub, sender_id string) ([]byte, error) {
+
+	var entries CustomerData_Holder
+	var ent CustomerData
+
+	keysIter, err := stub.RangeQueryState("SCR/"+sender_id+"/", "SCR/"+sender_id+"/~")
+	if err != nil {
+		return nil, errors.New("Unable to start the iterator")
+	}
+
+	defer keysIter.Close()
+
+	for keysIter.HasNext() {
+		_, datakeyAsbytes, iterErr := keysIter.Next()
+		if iterErr != nil {
+			return nil, fmt.Errorf("keys operation failed. Error accessing state: %s", err)
+		}
+		datakey:=string(datakeyAsbytes)
+		valAsbytes, err := stub.GetState(datakey)
+		if err != nil {
+			return nil, errors.New("Error getting customer data of "+datakey)
+		}
+		customer_id , receiver_id, sender_id := parse_key(datakey)
+
+		ent = CustomerData{ CustomerId:customer_id , ReceiverId:receiver_id, SenderId:sender_id, Content:string(valAsbytes)}
+
+		entries.Entries = append(entries.Entries,ent)
+	}
+
+	bytes, err := json.Marshal(entries)
+	if err != nil {
+		return nil, errors.New("Error creating CustomerData record")
+	}
+	return []byte(bytes), nil
+}
+
+func (t *SimpleChaincode) get_customers_by_receiver_id(stub *shim.ChaincodeStub, receiver_id string) ([]byte, error) {
+
+	var entries CustomerData_Holder
+	var ent CustomerData
+
+	keysIter, err := stub.RangeQueryState("D/"+receiver_id+"/", "D/"+receiver_id+"/~")
+	if err != nil {
+		return nil, errors.New("Unable to start the iterator")
+	}
+
+	defer keysIter.Close()
+
+	for keysIter.HasNext() {
+		datakeyAsbytes, dataAsBytes, iterErr := keysIter.Next()
+		if iterErr != nil {
+			return nil, fmt.Errorf("keys operation failed. Error accessing state: %s", err)
+		}
+		datakey:=string(datakeyAsbytes)
+
+		customer_id , receiver_id, sender_id := parse_key(datakey)
+
+		ent = CustomerData{ CustomerId:customer_id , ReceiverId:receiver_id, SenderId:sender_id, Content:string(dataAsBytes)}
+
+		entries.Entries = append(entries.Entries,ent)
+	}
+
+	bytes, err := json.Marshal(entries)
+	if err != nil {
+		return nil, errors.New("Error creating CustomerData record")
+	}
+	return []byte(bytes), nil
+
+}
+
 func (t *SimpleChaincode) get_all(stub *shim.ChaincodeStub) ([]byte, error) {
 
 	result := "["
