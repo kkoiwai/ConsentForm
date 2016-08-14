@@ -581,7 +581,7 @@ func (t *SimpleChaincode) get_customers_by_receiver_id(stub *shim.ChaincodeStub,
 
 		customer_id , receiver_id, sender_id := parse_key(datakey)
 		if customer_id == ""||receiver_id==""|| sender_id=="" {
-			return nil, fmt.Errorf("parse_key operation failed: %s",datakey)
+			return nil, fmt.Errorf("parse_key operation failed: %s %s %s %s",datakey, customer_id , receiver_id , sender_id)
 		}
 
 		ent = CustomerData{ CustomerId: customer_id , SenderId:sender_id, ReceiverId:receiver_id,  Content:string(dataAsBytes)}
@@ -716,7 +716,7 @@ func convert_key(key_type string, current_key string) (string) {
 
 func parse_key(key string) (customer_id string, receiver_id string, sender_id string) {
 	str := strings.Split("/", key)
-	if len(str) != 3 {
+	if len(str) != 4 {
 		return "", "", ""
 	}
 
@@ -734,7 +734,7 @@ func parse_key(key string) (customer_id string, receiver_id string, sender_id st
 	case "CRS" :
 		customer_id = str[1]; receiver_id = str[2]; sender_id = str[3]
 	}
-	return
+	return customer_id , receiver_id , sender_id
 }
 
 func valid_key(key string)(bool){
