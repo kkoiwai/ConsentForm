@@ -715,10 +715,10 @@ func convert_key(key_type string, current_key string) (string) {
 }
 
 func parse_key(key string) (customer_id string, receiver_id string, sender_id string) {
-	str := strings.Split("/", key)
-	//if len(str) != 4 {
-	//	return "", "", ""
-	//}
+	str := strings.Split( key,"/")
+	if len(str) != 4 {
+		return "", "", ""
+	}
 
 	switch str[0] {
 	case "D" :
