@@ -197,6 +197,16 @@ func (t *SimpleChaincode) Query(stub *shim.ChaincodeStub, function string, args 
 		receiver_id := args[0]
 		return t.get_customers_by_receiver_id(stub,receiver_id)
 
+	}else if function == "get_customer_id_by_crossref"{
+		if len(args) != 2 {
+			fmt.Printf("Incorrect number of arguments passed"); return nil, errors.New("QUERY: Incorrect number of arguments passed")
+		}
+
+		entity_id := args[0]
+		customer_ref := args[1]
+
+		return t.get_customer_id_by_crossref(stub, entity_id, customer_ref)
+
 	}
 	return nil, errors.New("QUERY: No such function.")
 
@@ -643,6 +653,22 @@ func (t *SimpleChaincode) get_customer_crossref(stub *shim.ChaincodeStub, entity
 	}
 
 	return []byte(valAsbytes), nil
+}
+
+func (t *SimpleChaincode) get_customer_id_by_crossref(stub *shim.ChaincodeStub, entity_id string, customer_ref string) ([]byte, error) {
+
+	var jsonResp = ""
+	key:="CUSTREF/"+entity_id+"/"+customer_ref
+	datakeyAsbytes, err := stub.GetState(key)
+	if err != nil {
+		jsonResp = "{\"Error\":\"Failed to get state for " + key + "\"}"
+		return nil, errors.New(jsonResp)
+	}
+	datakey:=string(datakeyAsbytes)
+
+	customer_id , _ , _ := parse_key(datakey)
+
+	return []byte(customer_id), nil
 }
 
 func (t *SimpleChaincode) get_all_entities(stub *shim.ChaincodeStub) ([]byte, error) {
