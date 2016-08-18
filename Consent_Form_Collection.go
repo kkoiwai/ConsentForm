@@ -665,8 +665,7 @@ func (t *SimpleChaincode) get_customer_id_by_crossref(stub *shim.ChaincodeStub, 
 		return nil, errors.New(jsonResp)
 	}
 	datakey:=string(datakeyAsbytes)
-
-	customer_id , _ , _ := parse_key(datakey)
+	customer_id:=strings.Split( datakey,"/")[1]
 
 	return []byte(customer_id), nil
 }
